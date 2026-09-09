@@ -59,9 +59,10 @@
 
 <script>
 const CONFIG={
-  leadEndpoint:'',
-  whatsappCommunityUrl:'',
-  facebookPixelId:''
+  telegramBotToken:'8636762499:AAECFIz0jRaXoh-6c6AuSDDlQhSa8OBt4Ms',
+  telegramChatId:'-5325125450',
+  whatsappCommunityUrl:'https://chat.whatsapp.com/HSLrGewlSj4DsDSFqBTFDd?mode=gi_t',
+  facebookPixelId:'533676655998231'
 };
 const form=document.querySelector('#registration-form');
 const registration=document.querySelector('#registration');
@@ -88,24 +89,35 @@ phoneInput.addEventListener('input',()=>{
 });
 document.querySelectorAll('[data-register]').forEach(b=>b.addEventListener('click',()=>registration.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'})));
 function error(id,message){document.querySelector('#'+id+'-error').textContent=message;document.querySelector('#'+id).setAttribute('aria-invalid',String(!!message))}
-function showSuccess(number){
+function showSuccess(){
   registration.removeAttribute('aria-busy');
-  registration.innerHTML=`<div class="success-panel"><div class="success-mark">✓</div><h3>Сіз тіркелдіңіз!</h3><p>Сіздің өтініміңіз қабылданды.</p><div class="success-number">Өтінім №${number}</div><p>Қазір WhatsApp қауымдастығына өтесіз.</p><a class="success-link" href="${CONFIG.whatsappCommunityUrl}">WhatsApp-қа өту</a></div>`;
+  registration.innerHTML=`<div class="success-panel"><div class="success-mark">✓</div><h3>Сіз тіркелдіңіз!</h3><p>WhatsApp тобына өтіп жатырсыз…</p><a class="success-link" href="${CONFIG.whatsappCommunityUrl}">WhatsApp-қа өту</a></div>`;
   registration.scrollIntoView({behavior:'smooth',block:'center'});
-  setTimeout(()=>location.assign(CONFIG.whatsappCommunityUrl),1400);
+  location.assign(CONFIG.whatsappCommunityUrl);
 }
 form.addEventListener('submit',async e=>{
   e.preventDefault();
   const name=form.elements.name.value.trim(),phone=form.elements.phone.value.replace(/[^0-9]/g,''),status=form.querySelector('.form-status');
   error('name',name.length<2?'Атыңызды жазыңыз.':'');error('phone',!(/^[78][0-9]{10}$/.test(phone))?'Телефон нөмірін толық жазыңыз: +7 XXX XXX XX XX.':'');error('consent',!form.elements.consent.checked?'Жеке деректерді өңдеуге келісіміңіз қажет.':'');
   const invalid=form.querySelector('[aria-invalid="true"]');status.textContent='';if(invalid){invalid.focus();return}
-  if(!CONFIG.leadEndpoint||!CONFIG.whatsappCommunityUrl){status.textContent='Тіркелу қызметі бапталуда. Кейінірек қайталап көріңіз.';return}
   registration.setAttribute('aria-busy','true');form.querySelector('button[type="submit"]').textContent='ЖІБЕРІЛУДЕ…';
   try{
-    const response=await fetch(CONFIG.leadEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:submissionId,name,phone:'+'+phone,company:form.elements.company.value,...attribution,page_url:location.href,referrer:document.referrer})});
-    const result=await response.json();if(!response.ok||!result.ok)throw new Error('submit_failed');
-    if(window.fbq)fbq('track','Lead',{content_name:'Kaspi webinar'},{eventID:String(result.leadNumber)});
-    showSuccess(result.leadNumber);
+    if(form.elements.company.value){showSuccess();return}
+    const message=[
+      '🔔 Новая заявка с вебинара',
+      '',
+      `Имя: ${name}`,
+      `Телефон: +${phone}`,
+      `UTM source: ${attribution.utm_source||'direct'}`,
+      `UTM medium: ${attribution.utm_medium||'—'}`,
+      `UTM campaign: ${attribution.utm_campaign||'—'}`,
+      `UTM content: ${attribution.utm_content||'—'}`,
+      `UTM term: ${attribution.utm_term||'—'}`
+    ].join('\n');
+    const response=await fetch(`https://api.telegram.org/bot${CONFIG.telegramBotToken}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:CONFIG.telegramChatId,text:message,disable_web_page_preview:true})});
+    const result=await response.json();if(!response.ok||!result.ok)throw new Error('telegram_failed');
+    if(window.fbq)fbq('track','Lead',{content_name:'Kaspi webinar'},{eventID:submissionId});
+    showSuccess();
   }catch(_){registration.removeAttribute('aria-busy');form.querySelector('button[type="submit"]').textContent='ВЕБИНАРҒА ТІРКЕЛУ';status.textContent='Өтінімді жіберу мүмкін болмады. Қайтадан көріңіз.'}
 });
 </script></body></html>
